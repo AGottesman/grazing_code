@@ -1,0 +1,55 @@
+## Adapted from Nathan Alexander
+## Get the Goods ##
+install.packages("googlesheets")
+install.packages("metafor")
+library(googlesheets)
+library(metafor)
+
+## Authorize and connect to Google Sheets ##
+gs_auth(new_user=TRUE)
+my.sheet <- gs_title("Data Extraction")
+
+## Create data frame from Google Sheet ##
+my.data <- data.frame(gs_read_csv(ss=my.sheet, ws="Data", is.na(TRUE)))
+names(my.data)
+
+
+## Subset data frame by taxa and response variable - Birds & Abundance ##
+birds<-rbind(my.data[which(my.data$Taxa=="Birds" 
+                           & my.data$Response=="Abundance"),])
+
+## Double-check subset ##
+head(birds)
+dim(birds)
+
+
+effect <-escalc(measure="SMD",m1i=TrtMean,m2i=CntrlMean,sd1i=sqrt(TrtVar),
+            sd2i=sqrt(CntrlVar),n1i=n.Trt,n2i=n.Cntrl, 
+            data=birds,var.names=c("SMD","SMD_var"),digits=4)
+head(effect)
+effect$Taxa
+effect <-effect[order(wt2$TrtMean),]
+names(effect)
+
+## Plot Histogram & Forest Plot ##
+hist(effect$SMD, breaks=15, xlab="hedge's d", col=2)
+abline(v=0,col=4,lty=3,lwd=5)
+forest(effect$SMD,effect$SMD_var,slab=effect$Species,pch=19)
+
+
+
+## Fixed Effects Model ##
+
+fixef.model <- rma(SMD, SMD_var, data=effect, method = "FE")
+summary(fixef.model)
+plot(fixef.model)
+forest(fixef.model)
+
+## Random Effects Model ##
+ranef.model <- rma(SMD, SMD_var, data=effect, method = "HE")
+
+summary(ranef.model)
+plot(ranef.model)
+forest(ranef.model)
+
+
